@@ -30,7 +30,8 @@ jobs:
             libgl1-mesa-dev \
             libgles2-mesa-dev \
             python3-pip
-
+            android-sdk
+            
       - name: Install Buildozer
         run: |
           pip install --upgrade pip
