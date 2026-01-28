@@ -2,13 +2,16 @@ name: Build APK (minimal)
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    env:
+      ANDROID_HOME: $HOME/android-sdk
+      ANDROID_SDK_ROOT: $HOME/android-sdk
 
     steps:
       - name: Checkout repository
@@ -34,17 +37,25 @@ jobs:
 
       - name: Install Android SDK (command line tools)
         run: |
-          mkdir -p $HOME/android-sdk
-          cd $HOME/android-sdk
+          mkdir -p "$ANDROID_HOME"
+          cd "$ANDROID_HOME"
 
-          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip commandlinetools-linux-11076708_latest.zip
+          # Download official command line tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          rm cmdline-tools.zip
 
-          mkdir -p cmdline-tools/latest
-          mv cmdline-tools/* cmdline-tools/latest/
+          # Normalize folder structure (works for all zip layouts)
+          if [ -d "cmdline-tools/cmdline-tools" ]; then
+            mkdir -p cmdline-tools/latest
+            mv cmdline-tools/cmdline-tools/* cmdline-tools/latest/
+            rmdir cmdline-tools/cmdline-tools
+          elif [ ! -d "cmdline-tools/latest" ]; then
+            mkdir -p cmdline-tools/latest
+            mv cmdline-tools/* cmdline-tools/latest/ || true
+          fi
 
-          export ANDROID_HOME=$HOME/android-sdk
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
 
           yes | sdkmanager --licenses
           sdkmanager \
@@ -59,8 +70,7 @@ jobs:
 
       - name: Build APK (debug)
         env:
-          ANDROID_HOME: $HOME/android-sdk
-          PATH: $HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH
+          PATH: $ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
         run: |
           buildozer android debug
 
